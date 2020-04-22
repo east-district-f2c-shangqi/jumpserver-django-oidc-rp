@@ -1,4 +1,4 @@
-django-oidc-rp
+jumpserver-django-oidc-rp
 ##############
 
 .. image:: https://readthedocs.org/projects/django-oidc-rp/badge/?version=latest
@@ -24,6 +24,11 @@ django-oidc-rp
 
 |
 
+**JumpServer-django-oidc-rp** is based on the modified django-oidc-rp adapter JumpServer OpenID Connect Relying Party (RP/Client)
+
+django-oidc-rp
+##############
+
 **Django-oidc-rp** is a lightweight - server side OpenID Connect Relying Party (RP/Client)
 implementation for Django. It allows to easily integrate an OpenID Connect provider as the
 authentication source in a Django project.
@@ -46,8 +51,7 @@ Python 3.4+, Django 1.11+.
 
 Authors
 =======
-
-impak Finance <tech@impakfinance.com>.
+Bai Jiangjie <jiangjie.bai@fit2cloud.com>.
 
 License
 =======
