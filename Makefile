@@ -31,7 +31,7 @@ lint:
 
 # Import sort checks.
 isort:
-	pipenv run isort --check-only --recursive --diff oidc_rp tests
+	pipenv run isort --check-only --recursive --diff jms_oidc_rp tests
 
 
 # TESTING
@@ -45,7 +45,7 @@ tests:
 
 # Collects code coverage data.
 coverage:
-	pipenv run py.test --cov-report term-missing --cov oidc_rp
+	pipenv run py.test --cov-report term-missing --cov jms_oidc_rp
 
 # Run the tests in "spec" mode.
 spec:

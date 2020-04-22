@@ -12,10 +12,10 @@ from jwkest.jws import JWS
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIRequestFactory
 
-from oidc_rp.conf import settings as oidc_rp_settings
-from oidc_rp.contrib.rest_framework.authentication import BearerTokenAuthentication
-from oidc_rp.models import OIDCUser
-from oidc_rp.signals import oidc_user_created
+from jms_oidc_rp.conf import settings as oidc_rp_settings
+from jms_oidc_rp.contrib.rest_framework.authentication import BearerTokenAuthentication
+from jms_oidc_rp.models import OIDCUser
+from jms_oidc_rp.signals import oidc_user_created
 
 
 FIXTURE_ROOT = os.path.join(os.path.dirname(__file__), 'fixtures')

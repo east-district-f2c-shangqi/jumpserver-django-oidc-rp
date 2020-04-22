@@ -1,4 +1,4 @@
-__version__ = '0.3.7.dev1'
+__version__ = '0.3.7.dev3'
 
 # Deploying a new version:
 # 1. remove the ".dev" from the current version number
@@ -10,4 +10,4 @@ __version__ = '0.3.7.dev1'
 # 7. run "git push" and "git push --tags"
 
 
-default_app_config = 'oidc_rp.apps.OIDCRelyingPartyAppConfig'
+default_app_config = 'jms_oidc_rp.apps.OIDCRelyingPartyAppConfig'

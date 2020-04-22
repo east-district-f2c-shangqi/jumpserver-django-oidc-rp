@@ -17,7 +17,7 @@ urlpatterns = [
     url(r'^i18n/', include('django.conf.urls.i18n')),
 
     # Apps
-    url(r'^oidc/', include('oidc_rp.urls')),
+    url(r'^oidc/', include('jms_oidc_rp.urls')),
 ]
 
 urlpatterns += i18n_patterns(

@@ -3,11 +3,11 @@ from hashlib import sha224, sha256
 
 from django.contrib.sites.shortcuts import get_current_site
 
-from oidc_rp.context_processors import oidc as oidc_ct
+from jms_oidc_rp.context_processors import oidc as oidc_ct
 
 
 @unittest.mock.patch(
-    'oidc_rp.conf.settings.UNAUTHENTICATED_SESSION_MANAGEMENT_KEY', 'dummyKey')
+    'jms_oidc_rp.conf.settings.UNAUTHENTICATED_SESSION_MANAGEMENT_KEY', 'dummyKey')
 def test_oidc_context_processor_can_generate_appropriate_context_values(rf):
     request = rf.get('/')
     ctx = oidc_ct(request)

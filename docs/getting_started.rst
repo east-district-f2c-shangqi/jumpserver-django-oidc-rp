@@ -26,27 +26,27 @@ Project configuration
 Django settings
 ---------------
 
-First you need to update your ``INSTALLED_APPS`` so that it includes the ``oidc_rp`` Django
+First you need to update your ``INSTALLED_APPS`` so that it includes the ``jms_oidc_rp`` Django
 application:
 
 .. code-block:: python
 
     INSTALLED_APPS = (
         # Other apps
-        'oidc_rp',
+        'jms_oidc_rp',
     )
 
-You can now add the ``oidc_rp.backends.OIDCAuthBackend`` authentication backend to your project's
+You can now add the ``jms_oidc_rp.backends.OIDCAuthBackend`` authentication backend to your project's
 authentication backends:
 
 .. code-block:: python
 
     AUTHENTICATION_BACKENDS = (
         'django.contrib.auth.backends.ModelBackend',
-        'oidc_rp.backends.OIDCAuthBackend',
+        'jms_oidc_rp.backends.OIDCAuthBackend',
     )
 
-Then add the ``oidc_rp.context_processors.oidc`` context processor to your ``TEMPLATES`` setting:
+Then add the ``jms_oidc_rp.context_processors.oidc`` context processor to your ``TEMPLATES`` setting:
 
 .. code-block:: python
 
@@ -56,20 +56,20 @@ Then add the ``oidc_rp.context_processors.oidc`` context processor to your ``TEM
             'OPTIONS': {
                 'context_processors': [
                     # Other context processors
-                    'oidc_rp.context_processors.oidc',
+                    'jms_oidc_rp.context_processors.oidc',
                 ],
             },
         },
     ]
 
-Finally add the ``oidc_rp.middleware.OIDCRefreshIDTokenMiddleware`` middleware to your
+Finally add the ``jms_oidc_rp.middleware.OIDCRefreshIDTokenMiddleware`` middleware to your
 ``MIDDLEWARE`` setting:
 
 .. code-block:: python
 
     MIDDLEWARE = (
         # Other middlewares
-        'oidc_rp.middleware.OIDCRefreshIDTokenMiddleware',
+        'jms_oidc_rp.middleware.OIDCRefreshIDTokenMiddleware',
     )
 
 .. note::
@@ -127,7 +127,7 @@ Finally you have to update your main ``urls.py`` module in order to include the 
 .. code-block:: python
 
     urlpatterns = patterns(
-        url(r'^oidc/', include('oidc_rp.urls')),
+        url(r'^oidc/', include('jms_oidc_rp.urls')),
         # ...
     )
 

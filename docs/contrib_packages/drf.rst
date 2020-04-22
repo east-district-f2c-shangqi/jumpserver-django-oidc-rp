@@ -14,7 +14,7 @@ the DRF's ``DEFAULT_AUTHENTICATION_CLASSES`` setting as follows:
         ),
         'DEFAULT_AUTHENTICATION_CLASSES': (
             # ...
-            'oidc_rp.contrib.rest_framework.authentication.BearerTokenAuthentication',
+            'jms_oidc_rp.contrib.rest_framework.authentication.BearerTokenAuthentication',
         ),
     }
 

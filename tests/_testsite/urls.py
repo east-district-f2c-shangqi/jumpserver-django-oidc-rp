@@ -12,5 +12,5 @@ from django.contrib import admin
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^oidc/', include('oidc_rp.urls')),
+    url(r'^oidc/', include('jms_oidc_rp.urls')),
 ]

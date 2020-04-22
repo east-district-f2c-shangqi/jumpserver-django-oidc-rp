@@ -12,9 +12,9 @@ from django.utils import timezone as tz
 from jwkest.jwk import KEYS, RSAKey
 from jwkest.jws import JWS
 
-from oidc_rp.backends import OIDCAuthBackend
-from oidc_rp.conf import settings as oidc_rp_settings
-from oidc_rp.middleware import OIDCRefreshIDTokenMiddleware
+from jms_oidc_rp.backends import OIDCAuthBackend
+from jms_oidc_rp.conf import settings as oidc_rp_settings
+from jms_oidc_rp.middleware import OIDCRefreshIDTokenMiddleware
 
 
 FIXTURE_ROOT = os.path.join(os.path.dirname(__file__), 'fixtures')

@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath('..'))
 
-oidc_rp = __import__('oidc_rp')
+jms_oidc_rp = __import__('jms_oidc_rp')
 
 ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'  # Are we on ReadTheDocs???
 
@@ -29,9 +29,9 @@ copyright = '2018, impak Finance'
 author = 'impak Finance'
 
 # The short X.Y version
-version = oidc_rp.__version__
+version = jms_oidc_rp.__version__
 # The full version, including alpha/beta/rc tags
-release = oidc_rp.__version__
+release = jms_oidc_rp.__version__
 
 
 # -- General configuration ---------------------------------------------------

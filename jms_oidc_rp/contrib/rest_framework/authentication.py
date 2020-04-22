@@ -13,10 +13,10 @@ from requests.exceptions import HTTPError
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from rest_framework.exceptions import AuthenticationFailed
 
-from oidc_rp.backends import create_oidc_user_from_claims, update_oidc_user_from_claims
-from oidc_rp.conf import settings as oidc_rp_settings
-from oidc_rp.models import OIDCUser
-from oidc_rp.signals import oidc_user_created
+from jms_oidc_rp.backends import create_oidc_user_from_claims, update_oidc_user_from_claims
+from jms_oidc_rp.conf import settings as oidc_rp_settings
+from jms_oidc_rp.models import OIDCUser
+from jms_oidc_rp.signals import oidc_user_created
 
 
 class BearerTokenAuthentication(BaseAuthentication):

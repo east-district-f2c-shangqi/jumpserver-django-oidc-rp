@@ -22,7 +22,7 @@ class TestOIDCAuthRequestView:
         assert parsed_parameters['state']
         assert parsed_parameters['nonce']
 
-    @unittest.mock.patch('oidc_rp.conf.settings.USE_NONCE', False)
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.USE_NONCE', False)
     def test_do_not_embed_a_nonce_in_the_request_parameters_if_the_related_setting_is_disabled(
             self, client):
         url = reverse('oidc_auth_request')
@@ -36,7 +36,7 @@ class TestOIDCAuthRequestView:
         assert parsed_parameters['state']
         assert 'nonce' not in parsed_parameters
 
-    @unittest.mock.patch('oidc_rp.conf.settings.USE_STATE', False)
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.USE_STATE', False)
     def test_do_not_embed_a_state_in_the_request_parameters_if_the_related_setting_is_disabled(
             self, client):
         url = reverse('oidc_auth_request')
@@ -68,7 +68,7 @@ class TestOIDCAuthRequestView:
 class TestOIDCAuthCallbackView:
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_REDIRECT_URI', '/success')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_REDIRECT_URI', '/success')
     def test_can_properly_authenticate_users_and_redirect_them_to_a_success_url(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -86,8 +86,8 @@ class TestOIDCAuthCallbackView:
 
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_REDIRECT_URI', '/success')
-    @unittest.mock.patch('oidc_rp.conf.settings.USE_NONCE', False)
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_REDIRECT_URI', '/success')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.USE_NONCE', False)
     def test_can_properly_authenticate_users_and_redirect_them_to_a_success_url_without_nonce(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -122,7 +122,7 @@ class TestOIDCAuthCallbackView:
 
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
     def test_can_redirect_users_to_a_failure_page_in_case_of_missing_nonce(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -139,7 +139,7 @@ class TestOIDCAuthCallbackView:
 
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
     def test_can_redirect_users_to_a_failure_page_in_case_of_missing_code_parameter(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -157,7 +157,7 @@ class TestOIDCAuthCallbackView:
 
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
     def test_can_redirect_users_to_a_failure_page_in_case_of_missing_state_parameter(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -175,7 +175,7 @@ class TestOIDCAuthCallbackView:
 
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
     def test_can_redirect_the_to_a_failure_page_if_he_is_not_active(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -195,7 +195,7 @@ class TestOIDCAuthCallbackView:
 
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
     def test_raises_if_the_state_has_been_tampered_with(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -212,7 +212,7 @@ class TestOIDCAuthCallbackView:
 
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_REDIRECT_URI', '/success')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_REDIRECT_URI', '/success')
     def test_removes_nonce_from_user_session_upon_user_authentication(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -232,7 +232,7 @@ class TestOIDCAuthCallbackView:
 
     @unittest.mock.patch('django.contrib.auth.authenticate')
     @unittest.mock.patch('django.contrib.auth.login')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_REDIRECT_URI', '/success')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_REDIRECT_URI', '/success')
     def test_stores_the_session_state_if_applicable(
             self, mocked_login, mocked_authenticate, client):
         user = User.objects.create_user('foo')
@@ -251,7 +251,7 @@ class TestOIDCAuthCallbackView:
         assert client.session['oidc_auth_session_state'] == 'thisisatest'
 
     @unittest.mock.patch('django.contrib.auth.logout')
-    @unittest.mock.patch('oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.AUTHENTICATION_FAILURE_REDIRECT_URI', '/fail')
     def test_logout_the_current_user_if_the_authentication_failed_on_the_op(
             self, mocked_logout, client):
         session = client.session
@@ -268,7 +268,7 @@ class TestOIDCAuthCallbackView:
 @pytest.mark.django_db
 class TestOIDCEndSessionView:
     @unittest.mock.patch('django.contrib.auth.logout')
-    @unittest.mock.patch('oidc_rp.conf.settings.PROVIDER_END_SESSION_ENDPOINT',
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.PROVIDER_END_SESSION_ENDPOINT',
                          'http://example.com/a/end-session')
     def test_can_log_out_a_user_from_the_application_and_the_authorization_server(
             self, mocked_logout, client):

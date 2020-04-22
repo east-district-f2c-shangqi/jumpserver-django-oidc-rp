@@ -7,7 +7,7 @@ from os.path import join
 from setuptools import find_packages
 from setuptools import setup
 
-import oidc_rp
+import jms_oidc_rp
 
 
 def read_relative_file(filename):
@@ -18,7 +18,7 @@ def read_relative_file(filename):
 
 setup(
     name='jumpserver-django-oidc-rp',
-    version=oidc_rp.__version__,
+    version=jms_oidc_rp.__version__,
     author='Bai Jiangjie',
     author_email='jiangjie.bai@fit2cloud.com',
     packages=find_packages(exclude=['tests.*', 'tests']),

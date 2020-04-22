@@ -13,10 +13,10 @@ from django.core.handlers.wsgi import WSGIRequest
 from jwkest.jwk import KEYS, RSAKey
 from jwkest.jws import JWS
 
-from oidc_rp.backends import OIDCAuthBackend
-from oidc_rp.conf import settings as oidc_rp_settings
-from oidc_rp.models import OIDCUser
-from oidc_rp.signals import oidc_user_created
+from jms_oidc_rp.backends import OIDCAuthBackend
+from jms_oidc_rp.conf import settings as oidc_rp_settings
+from jms_oidc_rp.models import OIDCUser
+from jms_oidc_rp.signals import oidc_user_created
 
 
 FIXTURE_ROOT = os.path.join(os.path.dirname(__file__), 'fixtures')
@@ -166,7 +166,7 @@ class TestOIDCAuthBackend:
         backend = OIDCAuthBackend()
         assert backend.authenticate(request, 'nonce') is None
 
-    @unittest.mock.patch('oidc_rp.conf.settings.USER_DETAILS_HANDLER',
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.USER_DETAILS_HANDLER',
                          'tests.unit.test_backends.set_users_as_staff_members')
     def test_can_authenticate_a_new_user_and_update_its_details_with_a_specific_handler(self, rf):
         request = rf.get('/oidc/cb/', {'state': 'state', 'code': 'authcode', })
@@ -178,7 +178,7 @@ class TestOIDCAuthBackend:
         assert user.oidc_user.sub == '1234'
         assert user.is_staff
 
-    @unittest.mock.patch('oidc_rp.conf.settings.ID_TOKEN_INCLUDE_USERINFO', True)
+    @unittest.mock.patch('jms_oidc_rp.conf.settings.ID_TOKEN_INCLUDE_USERINFO', True)
     def test_can_process_userinfo_included_in_the_id_token_instead_of_calling_the_userinfo_endpoint(
             self, rf):
         httpretty.register_uri(

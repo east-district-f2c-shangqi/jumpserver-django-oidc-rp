@@ -46,7 +46,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
 
     # Third-party apps
-    'oidc_rp',
+    'jms_oidc_rp',
 
     # Django's admin app
     'django.contrib.admin',
@@ -65,7 +65,7 @@ MIDDLEWARE = (
     'django.middleware.gzip.GZipMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'oidc_rp.middleware.OIDCRefreshIDTokenMiddleware',
+    'jms_oidc_rp.middleware.OIDCRefreshIDTokenMiddleware',
 )
 
 
@@ -215,7 +215,7 @@ LOGIN_URL = reverse_lazy('oidc_auth_request')
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#authentication-backends
 AUTHENTICATION_BACKENDS = [
-    'oidc_rp.backends.OIDCAuthBackend',
+    'jms_oidc_rp.backends.OIDCAuthBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 

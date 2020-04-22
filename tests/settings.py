@@ -32,7 +32,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
 
     # Third-party apps
-    'oidc_rp',
+    'jms_oidc_rp',
 
     # Django's admin app
     'django.contrib.admin',
