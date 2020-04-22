@@ -101,3 +101,6 @@ tests/_testdata/static/
 
 # Env settings
 settings_env.py
+
+# build shell
+.build_pypi.sh

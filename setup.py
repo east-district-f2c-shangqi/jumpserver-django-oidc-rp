@@ -17,17 +17,18 @@ def read_relative_file(filename):
 
 
 setup(
-    name='django-oidc-rp',
+    name='jumpserver-django-oidc-rp',
     version=oidc_rp.__version__,
-    author='impak Finance',
-    author_email='tech@impakfinance.com',
+    author='Bai Jiangjie',
+    author_email='jiangjie.bai@fit2cloud.com',
     packages=find_packages(exclude=['tests.*', 'tests']),
     include_package_data=True,
-    url='https://github.com/impak-finance/django-oidc-rp',
+    url='https://github.com/BaiJiangJie/jumpserver-django-oidc-rp',
     license='MIT',
-    description='A server side OpenID Connect Relying Party (RP/Client) implementation for Django.',
+    description='Based on the modified django-oidc-rp adapter JumpServer OpenID Connect Relying Party (RP/Client)',
     long_description=read_relative_file('README.rst'),
-    keywords='django openidconnect oidc client rp authentication auth',
+    long_description_content_type="text/markdown",
+    keywords='jumpserver django openidconnect oidc client rp authentication auth',
     zip_safe=False,
     install_requires=[
         'django>=1.11',

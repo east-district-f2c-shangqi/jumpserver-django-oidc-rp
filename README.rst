@@ -1,29 +1,6 @@
 jumpserver-django-oidc-rp
 ##############
 
-.. image:: https://readthedocs.org/projects/django-oidc-rp/badge/?version=latest
-    :target: https://django-oidc-rp.readthedocs.io/en/latest/
-    :alt: Documentation Status
-
-.. image:: https://img.shields.io/pypi/l/django-oidc-rp.svg
-    :target: https://pypi.python.org/pypi/django-oidc-rp/
-    :alt: License
-
-.. image:: https://img.shields.io/pypi/pyversions/django-oidc-rp.svg
-    :target: https://pypi.python.org/pypi/django-oidc-rp
-
-.. image:: https://img.shields.io/pypi/v/django-oidc-rp.svg
-    :target: https://pypi.python.org/pypi/django-oidc-rp/
-    :alt: Latest Version
-
-.. image:: https://travis-ci.org/impak-finance/django-oidc-rp.svg?branch=master
-    :target: https://travis-ci.org/impak-finance/django-oidc-rp
-
-.. image:: https://codecov.io/gh/impak-finance/django-oidc-rp/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/impak-finance/django-oidc-rp
-
-|
-
 **JumpServer-django-oidc-rp** is based on the modified django-oidc-rp adapter JumpServer OpenID Connect Relying Party (RP/Client)
 
 django-oidc-rp
