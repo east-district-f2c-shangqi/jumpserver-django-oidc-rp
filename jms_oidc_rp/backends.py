@@ -25,7 +25,7 @@ from .signals import oidc_user_created
 from .utils import validate_and_return_id_token
 
 
-class OIDCAuthBackend(ModelBackend):
+class OIDCAuthCodeBackend(ModelBackend):
     """ Allows to authenticate users using an OpenID Connect Provider (OP).
 
     This authentication backend is able to authenticate users in the case of the OpenID Connect

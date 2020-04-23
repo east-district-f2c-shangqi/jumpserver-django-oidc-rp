@@ -10,4 +10,4 @@ __version__ = '0.3.7.dev3'
 # 7. run "git push" and "git push --tags"
 
 
-default_app_config = 'jms_oidc_rp.apps.OIDCRelyingPartyAppConfig'
+default_app_config = 'jms_oidc_rp.apps.JumpServerOIDCRelyingPartyAppConfig'

@@ -11,7 +11,7 @@ from django.apps import AppConfig
 from django.utils.translation import ugettext_lazy as _
 
 
-class OIDCRelyingPartyAppConfig(AppConfig):
+class JumpServerOIDCRelyingPartyAppConfig(AppConfig):
     label = 'jms_oidc_rp'
     name = 'jms_oidc_rp'
-    verbose_name = _('OpenID Connect relying party')
+    verbose_name = _('JumpServer OpenID Connect relying party')
