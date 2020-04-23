@@ -59,7 +59,9 @@ class OIDCAuthCodeBackend(ModelBackend):
             'client_secret': oidc_rp_settings.CLIENT_SECRET,
             'grant_type': 'authorization_code',
             'code': code,
-            'redirect_uri': request.build_absolute_uri(reverse('oidc_auth_callback')),
+            'redirect_uri': request.build_absolute_uri(
+                reverse(oidc_rp_settings.AUTH_LOGIN_CALLBACK_URL_NAME)
+            ),
         }
 
         # Calls the token endpoint.
@@ -111,6 +113,10 @@ class OIDCAuthCodeBackend(ModelBackend):
             user_details_handler(oidc_user, userinfo_data)
 
         return oidc_user.user
+
+
+class OIDCAuthPasswordBackend(ModelBackend):
+    pass
 
 
 def get_or_create_user(username, email):

@@ -8,13 +8,13 @@
 
 """
 
-from django.conf.urls import url
+from django.urls import path
 
 from . import views
 
 
 urlpatterns = [
-    url(r'^auth/request/$', views.OIDCAuthRequestView.as_view(), name='oidc_auth_request'),
-    url(r'^auth/cb/$', views.OIDCAuthCallbackView.as_view(), name='oidc_auth_callback'),
-    url(r'^end-session/$', views.OIDCEndSessionView.as_view(), name='oidc_end_session'),
+    path('login/', views.OIDCAuthRequestView.as_view(), name='login'),
+    path('callback/', views.OIDCAuthCallbackView.as_view(), name='login-callback'),
+    path('logout/', views.OIDCEndSessionView.as_view(), name='logout'),
 ]
