@@ -21,6 +21,7 @@ from .signals import (
     oidc_user_created, oidc_user_updated, oidc_user_login_success, oidc_user_login_failed
 )
 from .utils import validate_and_return_id_token
+from .decorator import ssl_verification
 
 
 class OIDCAuthCodeBackend(ModelBackend):
@@ -34,6 +35,7 @@ class OIDCAuthCodeBackend(ModelBackend):
 
     """
 
+    @ssl_verification
     def authenticate(self, request, nonce=None, **kwargs):
         """ Authenticates users in case of the OpenID Connect Authorization code flow. """
         # NOTE: the request object is mandatory to perform the authentication using an authorization
@@ -104,6 +106,8 @@ class OIDCAuthCodeBackend(ModelBackend):
 
 
 class OIDCAuthPasswordBackend(ModelBackend):
+
+    @ssl_verification
     def authenticate(self, request, username=None, password=None, **kwargs):
         """
         https://oauth.net/2/

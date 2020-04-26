@@ -16,6 +16,7 @@ from django.contrib import auth
 
 from .conf import settings as oidc_rp_settings
 from .utils import validate_and_return_id_token
+from .decorator import ssl_verification
 
 
 class OIDCRefreshIDTokenMiddleware:
@@ -31,6 +32,7 @@ class OIDCRefreshIDTokenMiddleware:
         response = self.get_response(request)
         return response
 
+    @ssl_verification
     def refresh_token(self, request):
         """ Refreshes the token of the current user. """
         # NOTE: no refresh token in the session means that the user wasn't authentified using the

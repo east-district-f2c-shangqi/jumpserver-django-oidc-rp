@@ -118,7 +118,7 @@ AUTH_LOGOUT_URL_NAME = getattr(settings, 'AUTH_OPENID_AUTH_LOGOUT_URL_NAME', Non
 SHARE_SESSION = getattr(settings, 'AUTH_OPENID_SHARE_SESSION', True)
 
 # 忽略SSL证书认证
-IGNORE_SSL_VERIFICATION = getattr(settings, 'AUTH_OPENID_IGNORE_SSL_VERIFICATION', False)
+IGNORE_SSL_VERIFICATION = getattr(settings, 'AUTH_OPENID_IGNORE_SSL_VERIFICATION', True)
 
 # Claims 中 name/username/email 的 key
 PROVIDER_CLAIMS_NAME = getattr(settings, 'AUTH_OPENID_PROVIDER_CLAIMS_NAME', None)
