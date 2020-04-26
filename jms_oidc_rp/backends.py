@@ -21,7 +21,7 @@ from django.utils.module_loading import import_string
 
 from .conf import settings as oidc_rp_settings
 from .models import OIDCUser
-from .signals import oidc_user_created
+from .signals import oidc_user_created, oidc_user_updated
 from .utils import validate_and_return_id_token
 
 
@@ -104,6 +104,7 @@ class OIDCAuthCodeBackend(ModelBackend):
             oidc_user_created.send(sender=self.__class__, request=request, oidc_user=oidc_user)
         else:
             update_oidc_user_from_claims(oidc_user, userinfo_data)
+            oidc_user_updated.send(sender=self.__class__, request=request, oidc_user=oidc_user)
 
         # Runs a custom user details handler if applicable. Such handler could be responsible for
         # creating / updating whatever is necessary to manage the considered user (eg. a profile).
@@ -119,13 +120,52 @@ class OIDCAuthPasswordBackend(ModelBackend):
     pass
 
 
-def get_or_create_user(username, email):
+def get_userinfo_from_claims(claims):
+    """
+    returrn: (name, username, email)
+    """
+    # Get username from claims
+    username = None
+    if oidc_rp_settings.PROVIDER_CLAIMS_USERNAME is not None:
+        username = claims.get(oidc_rp_settings.PROVIDER_CLAIMS_USERNAME)
+    else:
+        username_possible_key_names = ['preferred_username', 'id']
+        for username_key_name in username_possible_key_names:
+            username = claims.get(username_key_name)
+            if username is not None:
+                break
+
+    # Get email from claims
+    if oidc_rp_settings.PROVIDER_CLAIMS_EMAIL is not None:
+        email = claims.get(oidc_rp_settings.PROVIDER_CLAIMS_EMAIL)
+    else:
+        email = claims.get('email')
+    if not email:
+        email = '{}@{}'.format(username, 'jumpserver.oidc')
+
+    # Get name from claims
+    name = None
+    if oidc_rp_settings.PROVIDER_CLAIMS_NAME is not None:
+        name = claims.get(oidc_rp_settings.PROVIDER_CLAIMS_NAME)
+    else:
+        name_possible_key_names = ['name', 'id', 'preferred_username']
+        for name_key_name in name_possible_key_names:
+            name = claims.get(name_key_name)
+            if name is not None:
+                break
+    if not name:
+        name = username
+
+    return name, username, email
+
+
+def get_or_create_user(name, username, email):
     username = smart_text(username)
 
-    users = get_user_model().objects.filter(email=email)
+    users = get_user_model().objects.filter(username=username)
 
     if len(users) == 0:
-        user = get_user_model().objects.create_user(username, email=email)
+        user = get_user_model().objects.create_user(username=username, email=email, name=name)
     elif len(users) == 1:
         return users[0]
     else:  # duplicate handling
@@ -142,11 +182,20 @@ def get_or_create_user(username, email):
 
 @transaction.atomic
 def create_oidc_user_from_claims(claims):
-    """ Creates an ``OIDCUser`` instance using the claims extracted from an id_token. """
-    sub = claims['sub']
-    email = claims.get('email')
-    username = base64.urlsafe_b64encode(hashlib.sha1(force_bytes(sub)).digest()).rstrip(b'=')
-    user = get_or_create_user(username, email)
+    """
+    Creates an ``OIDCUser`` instance using the claims extracted from an id_token.
+    https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+    """
+    # Get sub value from claims
+    sub = None
+    sub_possible_key_names = ['sub', 'id']
+    for sub_key_name in sub_possible_key_names:
+        sub = claims.get(sub_key_name)
+        if sub is not None:
+            break
+
+    name, username, email = get_userinfo_from_claims(claims)
+    user = get_or_create_user(name, username, email)
     if hasattr(user, 'oidc_user'):
         update_oidc_user_from_claims(user.oidc_user, claims)
         oidc_user = user.oidc_user
@@ -161,5 +210,3 @@ def update_oidc_user_from_claims(oidc_user, claims):
     """ Updates an ``OIDCUser`` instance using the claims extracted from an id_token. """
     oidc_user.userinfo = claims
     oidc_user.save()
-    oidc_user.user.email = claims.get('email')
-    oidc_user.user.save()
