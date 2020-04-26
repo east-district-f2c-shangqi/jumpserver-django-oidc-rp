@@ -35,6 +35,10 @@ class OIDCRefreshIDTokenMiddleware:
         """ Refreshes the token of the current user. """
         # NOTE: no refresh token in the session means that the user wasn't authentified using the
         # OpenID Connect provider (OP).
+
+        if not oidc_rp_settings.SHARE_SESSION:
+            return
+
         refresh_token = request.session.get('oidc_auth_refresh_token')
         if refresh_token is None:
             return
