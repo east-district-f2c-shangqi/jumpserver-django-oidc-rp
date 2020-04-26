@@ -128,7 +128,7 @@ class OIDCAuthCallbackView(View):
                 self.request.session['oidc_auth_session_state'] = \
                     callback_params.get('session_state', None)
 
-                oidc_user_login_success.send(self.__class__, request, user)
+                oidc_user_login_success.send(sender=self.__class__, request=request, user=user)
                 return HttpResponseRedirect(
                     next_url or oidc_rp_settings.AUTHENTICATION_REDIRECT_URI)
 

@@ -7,21 +7,19 @@
 
 """
 
-import base64
-import hashlib
-
 import requests
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.core.exceptions import SuspiciousOperation
 from django.db import transaction
 from django.urls import reverse
-from django.utils.encoding import force_bytes, smart_text
-from django.utils.module_loading import import_string
+from django.utils.encoding import smart_text
 
 from .conf import settings as oidc_rp_settings
 from .models import OIDCUser
-from .signals import oidc_user_created, oidc_user_updated
+from .signals import (
+    oidc_user_created, oidc_user_updated, oidc_user_login_success, oidc_user_login_failed
+)
 from .utils import validate_and_return_id_token
 
 
@@ -96,28 +94,84 @@ class OIDCAuthCodeBackend(ModelBackend):
             userinfo_response.raise_for_status()
             userinfo_data = userinfo_response.json()
 
-        # Tries to retrieve a corresponding user in the local database and creates it if applicable.
-        try:
-            oidc_user = OIDCUser.objects.select_related('user').get(sub=userinfo_data.get('sub'))
-        except OIDCUser.DoesNotExist:
-            oidc_user = create_oidc_user_from_claims(userinfo_data)
+        oidc_user, created = create_or_update_oidc_user(userinfo_data)
+        if created:
             oidc_user_created.send(sender=self.__class__, request=request, oidc_user=oidc_user)
         else:
-            update_oidc_user_from_claims(oidc_user, userinfo_data)
             oidc_user_updated.send(sender=self.__class__, request=request, oidc_user=oidc_user)
-
-        # Runs a custom user details handler if applicable. Such handler could be responsible for
-        # creating / updating whatever is necessary to manage the considered user (eg. a profile).
-        user_details_handler = import_string(oidc_rp_settings.USER_DETAILS_HANDLER) \
-            if oidc_rp_settings.USER_DETAILS_HANDLER is not None else None
-        if user_details_handler is not None:
-            user_details_handler(oidc_user, userinfo_data)
 
         return oidc_user.user
 
 
 class OIDCAuthPasswordBackend(ModelBackend):
-    pass
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        """
+        https://oauth.net/2/
+        https://aaronparecki.com/oauth-2-simplified/#password
+        """
+
+        if not username or not password:
+            return
+
+        # Prepares the token payload that will be used to request an authentication token to the
+        # token endpoint of the OIDC provider.
+        token_payload = {
+            'client_id': oidc_rp_settings.CLIENT_ID,
+            'client_secret': oidc_rp_settings.CLIENT_SECRET,
+            'grant_type': 'password',
+            'username': username,
+            'password': password,
+        }
+
+        token_response = requests.post(oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload)
+        try:
+            token_response.raise_for_status()
+        except Exception as e:
+            print('OIDCAuthPasswordbackend error: {}'.format(e))
+            reason = "OpenID error authenticating user password"
+            oidc_user_login_failed.send(
+                sender=self.__class__, usesrname=username, request=request, reason=reason
+            )
+            return
+        else:
+            token_response_data = token_response.json()
+
+        access_token = token_response_data.get('access_token')
+
+        userinfo_response = requests.get(
+            oidc_rp_settings.PROVIDER_USERINFO_ENDPOINT,
+            headers={'Authorization': 'Bearer {0}'.format(access_token)})
+        userinfo_data = userinfo_response.json()
+
+        oidc_user, created = create_or_update_oidc_user(userinfo_data)
+        if created:
+            oidc_user_created.send(sender=self.__class__, request=request, oidc_user=oidc_user)
+        else:
+            oidc_user_updated.send(sender=self.__class__, request=request, oidc_user=oidc_user)
+
+        oidc_user_login_success.send(sender=self.__class__, request=request, user=oidc_user.user)
+        return oidc_user.user
+
+
+def get_or_create_user(name, username, email):
+    username = smart_text(username)
+
+    users = get_user_model().objects.filter(username=username)
+
+    if len(users) == 0:
+        user = get_user_model().objects.create_user(username=username, email=email, name=name)
+    elif len(users) == 1:
+        return users[0]
+    else:  # duplicate handling
+        current_user = None
+        for u in users:
+            current_user = u
+            if hasattr(u, 'oidc_user'):
+                return u
+
+        return current_user
+
+    return user
 
 
 def get_userinfo_from_claims(claims):
@@ -159,27 +213,6 @@ def get_userinfo_from_claims(claims):
     return name, username, email
 
 
-def get_or_create_user(name, username, email):
-    username = smart_text(username)
-
-    users = get_user_model().objects.filter(username=username)
-
-    if len(users) == 0:
-        user = get_user_model().objects.create_user(username=username, email=email, name=name)
-    elif len(users) == 1:
-        return users[0]
-    else:  # duplicate handling
-        current_user = None
-        for u in users:
-            current_user = u
-            if hasattr(u, 'oidc_user'):
-                return u
-
-        return current_user
-
-    return user
-
-
 @transaction.atomic
 def create_oidc_user_from_claims(claims):
     """
@@ -210,3 +243,19 @@ def update_oidc_user_from_claims(oidc_user, claims):
     """ Updates an ``OIDCUser`` instance using the claims extracted from an id_token. """
     oidc_user.userinfo = claims
     oidc_user.save()
+
+
+def create_or_update_oidc_user(userinfo_data):
+    """
+    Tries to retrieve a corresponding user in the local database and creates it if applicable.
+    """
+    try:
+        oidc_user = OIDCUser.objects.select_related('user').get(sub=userinfo_data.get('sub'))
+    except OIDCUser.DoesNotExist:
+        created = True
+        oidc_user = create_oidc_user_from_claims(userinfo_data)
+    else:
+        created = False
+        update_oidc_user_from_claims(oidc_user, userinfo_data)
+
+    return oidc_user, created
