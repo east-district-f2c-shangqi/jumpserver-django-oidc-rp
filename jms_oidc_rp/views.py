@@ -21,7 +21,7 @@ from django.utils.http import is_safe_url, urlencode
 from django.views.generic import View
 
 from .conf import settings as oidc_rp_settings
-from .signals import oidc_user_login_success
+from .signals import openid_user_login_success
 
 
 class OIDCAuthRequestView(View):
@@ -128,9 +128,10 @@ class OIDCAuthCallbackView(View):
                 self.request.session['oidc_auth_session_state'] = \
                     callback_params.get('session_state', None)
 
-                oidc_user_login_success.send(sender=self.__class__, request=request, user=user)
+                openid_user_login_success.send(sender=self.__class__, request=request, user=user)
                 return HttpResponseRedirect(
-                    next_url or oidc_rp_settings.AUTHENTICATION_REDIRECT_URI)
+                    next_url or oidc_rp_settings.AUTHENTICATION_REDIRECT_URI
+                )
 
         if 'error' in callback_params:
             # If we receive an error in the callback GET parameters, this means that the

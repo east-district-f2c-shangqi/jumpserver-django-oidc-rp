@@ -8,23 +8,50 @@
 """
 
 import requests
+from rest_framework.exceptions import ParseError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.core.exceptions import SuspiciousOperation
 from django.db import transaction
 from django.urls import reverse
-from django.utils.encoding import smart_text
 
 from .conf import settings as oidc_rp_settings
 from .models import OIDCUser
-from .signals import (
-    oidc_user_created, oidc_user_updated, oidc_user_login_success, oidc_user_login_failed
-)
 from .utils import validate_and_return_id_token
 from .decorator import ssl_verification
+from .signals import (
+    openid_user_create_or_update, openid_user_login_failed, openid_user_login_success
+)
 
 
-class OIDCAuthCodeBackend(ModelBackend):
+class ActionForUser:
+
+    @transaction.atomic
+    def get_or_create_user_from_claims(self, request, claims):
+        sub = claims['sub']
+        name = claims.get('name', sub)
+        username = claims.get('preferred_username', sub)
+        email = claims.get('email', "{}@{}".format(username, 'jumpserver.openid'))
+        user, created = get_user_model().objects.get_or_create(
+            username=username, defaults={"name": name, "email": email}
+        )
+        openid_user_create_or_update.send(
+            sender=self.__class__, request=request, user=user, created=created,
+            name=name, username=username, email=email
+        )
+        return user, created
+
+    @staticmethod
+    @transaction.atomic
+    def update_or_create_oidc_user(user, claims):
+        sub = user.oidc_user.sub if hasattr(user, 'oidc_user') else claims['sub']
+        oidc_user, created = OIDCUser.objects.update_or_create(
+            sub=sub, defaults={'user': user, 'userinfo': claims}
+        )
+        return oidc_user
+
+
+class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
     """ Allows to authenticate users using an OpenID Connect Provider (OP).
 
     This authentication backend is able to authenticate users in the case of the OpenID Connect
@@ -67,7 +94,12 @@ class OIDCAuthCodeBackend(ModelBackend):
         # Calls the token endpoint.
         token_response = requests.post(oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload)
         token_response.raise_for_status()
-        token_response_data = token_response.json()
+        try:
+            token_response_data = token_response.json()
+        except Exception as e:
+            error = "OIDCAuthCodeBackend token response json error, token response " \
+                    "content is: {}, error is: {}".format(token_response.content, str(e))
+            raise ParseError(error)
 
         # Validates the token.
         raw_id_token = token_response_data.get('id_token')
@@ -86,26 +118,29 @@ class OIDCAuthCodeBackend(ModelBackend):
 
         # If the id_token contains userinfo scopes and claims we don't have to hit the userinfo
         # endpoint.
-        if oidc_rp_settings.ID_TOKEN_INCLUDE_USERINFO:
-            userinfo_data = id_token
+        # https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+        if oidc_rp_settings.ID_TOKEN_INCLUDE_CLAIMS:
+            claims = id_token
         else:
-            # Fetches the user information from the userinfo endpoint provided by the OP.
-            userinfo_response = requests.get(
+            # Fetches the claims (user information) from the userinfo endpoint provided by the OP.
+            claims_response = requests.get(
                 oidc_rp_settings.PROVIDER_USERINFO_ENDPOINT,
-                headers={'Authorization': 'Bearer {0}'.format(access_token)})
-            userinfo_response.raise_for_status()
-            userinfo_data = userinfo_response.json()
+                headers={'Authorization': 'Bearer {0}'.format(access_token)}
+            )
+            claims_response.raise_for_status()
+            try:
+                claims = claims_response.json()
+            except Exception as e:
+                error = "OIDCAuthCodeBackend claims response json error, claims response " \
+                        "content is: {}, error is: {}".format(claims_response.content, str(e))
+                raise ParseError(error)
 
-        oidc_user, created = create_or_update_oidc_user(userinfo_data)
-        if created:
-            oidc_user_created.send(sender=self.__class__, request=request, oidc_user=oidc_user)
-        else:
-            oidc_user_updated.send(sender=self.__class__, request=request, oidc_user=oidc_user)
-
-        return oidc_user.user
+        user, created = self.get_or_create_user_from_claims(request, claims)
+        self.update_or_create_oidc_user(user, claims)
+        return user
 
 
-class OIDCAuthPasswordBackend(ModelBackend):
+class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
 
     @ssl_verification
     def authenticate(self, request, username=None, password=None, **kwargs):
@@ -127,139 +162,39 @@ class OIDCAuthPasswordBackend(ModelBackend):
             'password': password,
         }
 
+        # Calls the token endpoint.
         token_response = requests.post(oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload)
         try:
-            token_response.raise_for_status()
+            token_response_data = token_response.json()
         except Exception as e:
-            print('OIDCAuthPasswordbackend error: {}'.format(e))
-            reason = "OpenID error authenticating user password"
-            oidc_user_login_failed.send(
-                sender=self.__class__, usesrname=username, request=request, reason=reason
+            error = "OIDCAuthPasswordBackend token response json error, token response " \
+                    "content is: {}, error is: {}".format(token_response.content, str(e))
+            print(error)
+            openid_user_login_failed.send(
+                sender=self.__class__, request=request, username=username, reason=error
             )
             return
-        else:
-            token_response_data = token_response.json()
 
+        # Retrieves the access token
         access_token = token_response_data.get('access_token')
 
-        userinfo_response = requests.get(
+        # Fetches the claims (user information) from the userinfo endpoint provided by the OP.
+        claims_response = requests.get(
             oidc_rp_settings.PROVIDER_USERINFO_ENDPOINT,
-            headers={'Authorization': 'Bearer {0}'.format(access_token)})
-        userinfo_data = userinfo_response.json()
+            headers={'Authorization': 'Bearer {0}'.format(access_token)}
+        )
+        try:
+            claims = claims_response.json()
+        except Exception as e:
+            error = "OIDCAuthPasswordBackend claims response json error, claims response " \
+                    "content is: {}, error is: {}".format(claims_response.content, str(e))
+            print(error)
+            openid_user_login_failed.send(
+                sender=self.__class__, request=request, username=username, reason=error
+            )
+            return
 
-        oidc_user, created = create_or_update_oidc_user(userinfo_data)
-        if created:
-            oidc_user_created.send(sender=self.__class__, request=request, oidc_user=oidc_user)
-        else:
-            oidc_user_updated.send(sender=self.__class__, request=request, oidc_user=oidc_user)
-
-        oidc_user_login_success.send(sender=self.__class__, request=request, user=oidc_user.user)
-        return oidc_user.user
-
-
-def get_or_create_user(name, username, email):
-    username = smart_text(username)
-
-    users = get_user_model().objects.filter(username=username)
-
-    if len(users) == 0:
-        user = get_user_model().objects.create_user(username=username, email=email, name=name)
-    elif len(users) == 1:
-        return users[0]
-    else:  # duplicate handling
-        current_user = None
-        for u in users:
-            current_user = u
-            if hasattr(u, 'oidc_user'):
-                return u
-
-        return current_user
-
-    return user
-
-
-def get_userinfo_from_claims(claims):
-    """
-    returrn: (name, username, email)
-    """
-    # Get username from claims
-    username = None
-    if oidc_rp_settings.PROVIDER_CLAIMS_USERNAME is not None:
-        username = claims.get(oidc_rp_settings.PROVIDER_CLAIMS_USERNAME)
-    else:
-        username_possible_key_names = ['preferred_username', 'id']
-        for username_key_name in username_possible_key_names:
-            username = claims.get(username_key_name)
-            if username is not None:
-                break
-
-    # Get email from claims
-    if oidc_rp_settings.PROVIDER_CLAIMS_EMAIL is not None:
-        email = claims.get(oidc_rp_settings.PROVIDER_CLAIMS_EMAIL)
-    else:
-        email = claims.get('email')
-    if not email:
-        email = '{}@{}'.format(username, 'jumpserver.oidc')
-
-    # Get name from claims
-    name = None
-    if oidc_rp_settings.PROVIDER_CLAIMS_NAME is not None:
-        name = claims.get(oidc_rp_settings.PROVIDER_CLAIMS_NAME)
-    else:
-        name_possible_key_names = ['name', 'id', 'preferred_username']
-        for name_key_name in name_possible_key_names:
-            name = claims.get(name_key_name)
-            if name is not None:
-                break
-    if not name:
-        name = username
-
-    return name, username, email
-
-
-@transaction.atomic
-def create_oidc_user_from_claims(claims):
-    """
-    Creates an ``OIDCUser`` instance using the claims extracted from an id_token.
-    https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
-    """
-    # Get sub value from claims
-    sub = None
-    sub_possible_key_names = ['sub', 'id']
-    for sub_key_name in sub_possible_key_names:
-        sub = claims.get(sub_key_name)
-        if sub is not None:
-            break
-
-    name, username, email = get_userinfo_from_claims(claims)
-    user = get_or_create_user(name, username, email)
-    if hasattr(user, 'oidc_user'):
-        update_oidc_user_from_claims(user.oidc_user, claims)
-        oidc_user = user.oidc_user
-    else:
-        oidc_user = OIDCUser.objects.create(user=user, sub=sub, userinfo=claims)
-
-    return oidc_user
-
-
-@transaction.atomic
-def update_oidc_user_from_claims(oidc_user, claims):
-    """ Updates an ``OIDCUser`` instance using the claims extracted from an id_token. """
-    oidc_user.userinfo = claims
-    oidc_user.save()
-
-
-def create_or_update_oidc_user(userinfo_data):
-    """
-    Tries to retrieve a corresponding user in the local database and creates it if applicable.
-    """
-    try:
-        oidc_user = OIDCUser.objects.select_related('user').get(sub=userinfo_data.get('sub'))
-    except OIDCUser.DoesNotExist:
-        created = True
-        oidc_user = create_oidc_user_from_claims(userinfo_data)
-    else:
-        created = False
-        update_oidc_user_from_claims(oidc_user, userinfo_data)
-
-    return oidc_user, created
+        user, created = self.get_or_create_user_from_claims(request, claims)
+        self.update_or_create_oidc_user(user, claims)
+        openid_user_login_success.send(sender=self.__class__, request=request, user=user)
+        return user

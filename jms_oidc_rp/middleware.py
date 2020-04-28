@@ -35,19 +35,20 @@ class OIDCRefreshIDTokenMiddleware:
     @ssl_verification
     def refresh_token(self, request):
         """ Refreshes the token of the current user. """
-        # NOTE: no refresh token in the session means that the user wasn't authentified using the
-        # OpenID Connect provider (OP).
-
+        # NOTE: SHARE_SESSION is False means that the user does not share sessions
+        # with other applications
         if not oidc_rp_settings.SHARE_SESSION:
             return
 
+        # NOTE: no refresh token in the session means that the user wasn't authentified using the
+        # OpenID Connect provider (OP).
         refresh_token = request.session.get('oidc_auth_refresh_token')
         if refresh_token is None:
             return
 
         id_token_exp_timestamp = request.session.get('oidc_auth_id_token_exp_timestamp', None)
         now_timestamp = time.time()
-        # Returns immediatelly if the token is still valid.
+        # Returns immediately if the token is still valid.
         if id_token_exp_timestamp is not None and id_token_exp_timestamp > now_timestamp:
             return
 
@@ -59,6 +60,7 @@ class OIDCRefreshIDTokenMiddleware:
             'client_secret': oidc_rp_settings.CLIENT_SECRET,
             'grant_type': 'refresh_token',
             'refresh_token': refresh_token,
+            'scope': oidc_rp_settings.SCOPES,
         }
 
         # Calls the token endpoint.
