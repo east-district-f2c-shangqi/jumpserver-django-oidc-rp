@@ -20,7 +20,7 @@ from .models import OIDCUser
 from .utils import validate_and_return_id_token
 from .decorator import ssl_verification
 from .signals import (
-    openid_user_create_or_update, openid_user_login_failed, openid_user_login_success
+    openid_create_or_update_user, openid_user_login_failed, openid_user_login_success
 )
 
 
@@ -35,7 +35,7 @@ class ActionForUser:
         user, created = get_user_model().objects.get_or_create(
             username=username, defaults={"name": name, "email": email}
         )
-        openid_user_create_or_update.send(
+        openid_create_or_update_user.send(
             sender=self.__class__, request=request, user=user, created=created,
             name=name, username=username, email=email
         )
