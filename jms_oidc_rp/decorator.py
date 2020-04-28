@@ -6,15 +6,16 @@ import contextlib
 
 import requests
 from urllib3.exceptions import InsecureRequestWarning
-from django.conf import settings
 
 from .conf import settings as oidc_rp_settings
+from .utils import get_logger
 
-__all__ = [
-    'ssl_verification',
-]
+__all__ = ['ssl_verification']
 
 old_merge_environment_settings = requests.Session.merge_environment_settings
+
+
+logger = get_logger(__file__)
 
 
 @contextlib.contextmanager

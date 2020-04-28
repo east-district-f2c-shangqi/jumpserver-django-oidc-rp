@@ -17,24 +17,37 @@ from django.urls import reverse
 
 from .conf import settings as oidc_rp_settings
 from .models import OIDCUser
-from .utils import validate_and_return_id_token
+from .utils import validate_and_return_id_token, get_logger
 from .decorator import ssl_verification
 from .signals import (
     openid_create_or_update_user, openid_user_login_failed, openid_user_login_success
 )
+
+logger = get_logger(__file__)
 
 
 class ActionForUser:
 
     @transaction.atomic
     def get_or_create_user_from_claims(self, request, claims):
+        log_prompt = "Get or Create user from claims [ActionForUser]: {}"
+        logger.debug(log_prompt.format('start'))
+
         sub = claims['sub']
         name = claims.get('name', sub)
         username = claims.get('preferred_username', sub)
         email = claims.get('email', "{}@{}".format(username, 'jumpserver.openid'))
+        logger.debug(
+            log_prompt.format(
+                "sub: {}|name: {}|username: {}|email: {}".format(sub, name, username, email)
+            )
+        )
+
         user, created = get_user_model().objects.get_or_create(
             username=username, defaults={"name": name, "email": email}
         )
+        logger.debug(log_prompt.format("user: {}|created: {}".format(user, created)))
+        logger.debug(log_prompt.format("Send signal => openid create or update user"))
         openid_create_or_update_user.send(
             sender=self.__class__, request=request, user=user, created=created,
             name=name, username=username, email=email
@@ -44,11 +57,28 @@ class ActionForUser:
     @staticmethod
     @transaction.atomic
     def update_or_create_oidc_user(user, claims):
+        log_prompt = "Update or Create oidc user [ActionForUser]: {}"
+        logger.debug(log_prompt.format('start'))
+
         sub = user.oidc_user.sub if hasattr(user, 'oidc_user') else claims['sub']
+        logger.debug(log_prompt.format("sub: {}".format(sub)))
+
         oidc_user, created = OIDCUser.objects.update_or_create(
             sub=sub, defaults={'user': user, 'userinfo': claims}
         )
+        logger.debug(
+            log_prompt.format("oidc_user: {}=>{}|created: {}".format(sub, oidc_user, created))
+        )
         return oidc_user
+
+    @staticmethod
+    def user_can_authenticate(user):
+        """
+        Reject users with is_active=False. Custom user models that don't have
+        that attribute are allowed.
+        """
+        is_valid = getattr(user, 'is_valid', None)
+        return is_valid or is_valid is None
 
 
 class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
@@ -65,9 +95,13 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
     @ssl_verification
     def authenticate(self, request, nonce=None, **kwargs):
         """ Authenticates users in case of the OpenID Connect Authorization code flow. """
+        log_prompt = "Process authenticate [OIDCAuthCodeBackend]: {}"
+        logger.debug(log_prompt.format('start'))
+
         # NOTE: the request object is mandatory to perform the authentication using an authorization
         # code provided by the OIDC supplier.
         if (nonce is None and oidc_rp_settings.USE_NONCE) or request is None:
+            logger.debug(log_prompt.format('Request or nonce value is missing'))
             return
 
         # Fetches required GET parameters from the HTTP request object.
@@ -77,10 +111,12 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
         # Don't go further if the state value or the authorization code is not present in the GET
         # parameters because we won't be able to get a valid token for the user in that case.
         if (state is None and oidc_rp_settings.USE_STATE) or code is None:
+            logger.debug(log_prompt.format('Authorization code or state value is missing'))
             raise SuspiciousOperation('Authorization code or state value is missing')
 
         # Prepares the token payload that will be used to request an authentication token to the
         # token endpoint of the OIDC provider.
+        logger.debug(log_prompt.format('Prepares token payload'))
         token_payload = {
             'client_id': oidc_rp_settings.CLIENT_ID,
             'client_secret': oidc_rp_settings.CLIENT_SECRET,
@@ -92,19 +128,23 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
         }
 
         # Calls the token endpoint.
+        logger.debug(log_prompt.format('Call the token endpoint'))
         token_response = requests.post(oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload)
         token_response.raise_for_status()
         try:
             token_response_data = token_response.json()
         except Exception as e:
-            error = "OIDCAuthCodeBackend token response json error, token response " \
+            error = "Json token response error, token response " \
                     "content is: {}, error is: {}".format(token_response.content, str(e))
+            logger.debug(log_prompt.format(error))
             raise ParseError(error)
 
         # Validates the token.
+        logger.debug(log_prompt.format('Validate ID Token'))
         raw_id_token = token_response_data.get('id_token')
         id_token = validate_and_return_id_token(raw_id_token, nonce)
         if id_token is None:
+            logger.debug(log_prompt.format('ID Token is None'))
             return
 
         # Retrieves the access token and refresh token.
@@ -120,9 +160,11 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
         # endpoint.
         # https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
         if oidc_rp_settings.ID_TOKEN_INCLUDE_CLAIMS:
+            logger.debug(log_prompt.format('ID Token in claims'))
             claims = id_token
         else:
             # Fetches the claims (user information) from the userinfo endpoint provided by the OP.
+            logger.debug(log_prompt.format('Fetches the claims from the userinfo endpoint'))
             claims_response = requests.get(
                 oidc_rp_settings.PROVIDER_USERINFO_ENDPOINT,
                 headers={'Authorization': 'Bearer {0}'.format(access_token)}
@@ -131,13 +173,30 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
             try:
                 claims = claims_response.json()
             except Exception as e:
-                error = "OIDCAuthCodeBackend claims response json error, claims response " \
+                error = "Json claims response error, claims response " \
                         "content is: {}, error is: {}".format(claims_response.content, str(e))
+                logger.debug(log_prompt.format(error))
                 raise ParseError(error)
 
+        logger.debug(log_prompt.format('Get or create user from claims'))
         user, created = self.get_or_create_user_from_claims(request, claims)
+
+        logger.debug(log_prompt.format('Update or create oidc user'))
         self.update_or_create_oidc_user(user, claims)
-        return user
+
+        if self.user_can_authenticate(user):
+            logger.debug(log_prompt.format('OpenID user login success'))
+            logger.debug(log_prompt.format('Send signal => openid user login success'))
+            openid_user_login_success.send(sender=self.__class__, request=request, user=user)
+            return user
+        else:
+            logger.debug(log_prompt.format('OpenID user login failed'))
+            logger.debug(log_prompt.format('Send signal => openid user login failed'))
+            openid_user_login_failed.send(
+                sender=self.__class__, request=request, username=user.username,
+                reason="User is invalid"
+            )
+            return None
 
 
 class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
@@ -148,12 +207,16 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
         https://oauth.net/2/
         https://aaronparecki.com/oauth-2-simplified/#password
         """
+        log_prompt = "Process authenticate [OIDCAuthPasswordBackend]: {}"
+        logger.debug(log_prompt.format('start'))
 
         if not username or not password:
+            logger.debug(log_prompt.format('Username or password is missing'))
             return
 
         # Prepares the token payload that will be used to request an authentication token to the
         # token endpoint of the OIDC provider.
+        logger.debug(log_prompt.format('Prepares token payload'))
         token_payload = {
             'client_id': oidc_rp_settings.CLIENT_ID,
             'client_secret': oidc_rp_settings.CLIENT_SECRET,
@@ -163,13 +226,16 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
         }
 
         # Calls the token endpoint.
+        logger.debug(log_prompt.format('Call the token endpoint'))
         token_response = requests.post(oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload)
         try:
             token_response_data = token_response.json()
         except Exception as e:
-            error = "OIDCAuthPasswordBackend token response json error, token response " \
+            error = "Json token response error, token response " \
                     "content is: {}, error is: {}".format(token_response.content, str(e))
             print(error)
+            logger.debug(log_prompt.format(error))
+            logger.debug(log_prompt.format('Send signal => openid user login failed'))
             openid_user_login_failed.send(
                 sender=self.__class__, request=request, username=username, reason=error
             )
@@ -179,6 +245,7 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
         access_token = token_response_data.get('access_token')
 
         # Fetches the claims (user information) from the userinfo endpoint provided by the OP.
+        logger.debug(log_prompt.format('Fetches the claims from the userinfo endpoint'))
         claims_response = requests.get(
             oidc_rp_settings.PROVIDER_USERINFO_ENDPOINT,
             headers={'Authorization': 'Bearer {0}'.format(access_token)}
@@ -186,15 +253,32 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
         try:
             claims = claims_response.json()
         except Exception as e:
-            error = "OIDCAuthPasswordBackend claims response json error, claims response " \
+            error = "Json claims response error, claims response " \
                     "content is: {}, error is: {}".format(claims_response.content, str(e))
-            print(error)
+            logger.debug(log_prompt.format(error))
+            logger.debug(log_prompt.format('Send signal => openid user login failed'))
             openid_user_login_failed.send(
                 sender=self.__class__, request=request, username=username, reason=error
             )
             return
 
+        logger.debug(log_prompt.format('Get or create user from claims'))
         user, created = self.get_or_create_user_from_claims(request, claims)
+
+        logger.debug(log_prompt.format('Update or create oidc user'))
         self.update_or_create_oidc_user(user, claims)
-        openid_user_login_success.send(sender=self.__class__, request=request, user=user)
-        return user
+
+        if self.user_can_authenticate(user):
+            logger.debug(log_prompt.format('OpenID user login success'))
+            logger.debug(log_prompt.format('Send signal => openid user login success'))
+            openid_user_login_success.send(
+                sender=self.__class__, request=request, user=user
+            )
+            return user
+        else:
+            logger.debug(log_prompt.format('OpenID user login failed'))
+            logger.debug(log_prompt.format('Send signal => openid user login failed'))
+            openid_user_login_failed.send(
+                sender=self.__class__, request=request, username=username, reason=error
+            )
+

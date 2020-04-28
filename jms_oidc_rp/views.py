@@ -22,6 +22,10 @@ from django.views.generic import View
 
 from .conf import settings as oidc_rp_settings
 from .signals import openid_user_login_success
+from .utils import get_logger
+
+
+logger = get_logger(__file__)
 
 
 class OIDCAuthRequestView(View):
@@ -37,7 +41,12 @@ class OIDCAuthRequestView(View):
 
     def get(self, request):
         """ Processes GET requests. """
+
+        log_prompt = "Process GET requests [OIDCAuthRequestView]: {}"
+        logger.debug(log_prompt.format('Start'))
+
         # Defines common parameters used to bootstrap the authentication request.
+        logger.debug(log_prompt.format('Construct request params'))
         authentication_request_params = request.GET.dict()
         authentication_request_params.update({
             'scope': oidc_rp_settings.SCOPES,
@@ -51,6 +60,7 @@ class OIDCAuthRequestView(View):
         # States should be used! They are recommended in order to maintain state between the
         # authentication request and the callback.
         if oidc_rp_settings.USE_STATE:
+            logger.debug(log_prompt.format('Use state'))
             state = get_random_string(oidc_rp_settings.STATE_LENGTH)
             authentication_request_params.update({'state': state})
             request.session['oidc_auth_state'] = state
@@ -58,19 +68,24 @@ class OIDCAuthRequestView(View):
         # Nonces should be used too! In that case the generated nonce is stored both in the
         # authentication request parameters and in the user's session.
         if oidc_rp_settings.USE_NONCE:
+            logger.debug(log_prompt.format('Use nonce'))
             nonce = get_random_string(oidc_rp_settings.NONCE_LENGTH)
             authentication_request_params.update({'nonce': nonce, })
             request.session['oidc_auth_nonce'] = nonce
 
         # Stores the "next" URL in the session if applicable.
+        logger.debug(log_prompt.format('Stores next url in the session'))
         next_url = request.GET.get('next')
         request.session['oidc_auth_next_url'] = next_url \
             if is_safe_url(url=next_url, allowed_hosts=(request.get_host(), )) else None
 
         # Redirects the user to authorization endpoint.
+        logger.debug(log_prompt.format('Construct redirect url'))
         query = urlencode(authentication_request_params)
         redirect_url = '{url}?{query}'.format(
             url=oidc_rp_settings.PROVIDER_AUTHORIZATION_ENDPOINT, query=query)
+
+        logger.debug(log_prompt.format('Redirect'))
         return HttpResponseRedirect(redirect_url)
 
 
@@ -88,6 +103,8 @@ class OIDCAuthCallbackView(View):
 
     def get(self, request):
         """ Processes GET requests. """
+        log_prompt = "Process GET requests [OIDCAuthCallbackView]: {}"
+        logger.debug(log_prompt.format('Start'))
         callback_params = request.GET
 
         # Retrieve the state value that was previously generated. No state means that we cannot
@@ -111,12 +128,15 @@ class OIDCAuthCallbackView(View):
             # generated when forging the authorization request. This is necessary to mitigate
             # Cross-Site Request Forgery (CSRF, XSRF).
             if oidc_rp_settings.USE_STATE and callback_params['state'] != state:
+                logger.debug(log_prompt.format('Invalid OpenID Connect callback state value'))
                 raise SuspiciousOperation('Invalid OpenID Connect callback state value')
 
             # Authenticates the end-user.
             next_url = request.session.get('oidc_auth_next_url', None)
+            logger.debug(log_prompt.format('Process authenticate'))
             user = auth.authenticate(nonce=nonce, request=request)
-            if user and user.is_active:
+            if user and user.is_valid:
+                logger.debug(log_prompt.format('Login: {}'.format(user)))
                 auth.login(self.request, user)
                 # Stores an expiration timestamp in the user's session. This value will be used if
                 # the project is configured to periodically refresh user's token.
@@ -128,18 +148,23 @@ class OIDCAuthCallbackView(View):
                 self.request.session['oidc_auth_session_state'] = \
                     callback_params.get('session_state', None)
 
-                openid_user_login_success.send(sender=self.__class__, request=request, user=user)
+                logger.debug(log_prompt.format('Redirect'))
                 return HttpResponseRedirect(
                     next_url or oidc_rp_settings.AUTHENTICATION_REDIRECT_URI
                 )
 
         if 'error' in callback_params:
+            logger.debug(
+                log_prompt.format('Error in callback params: {}'.format(callback_params['error']))
+            )
             # If we receive an error in the callback GET parameters, this means that the
             # authentication could not be performed at the OP level. In that case we have to logout
             # the current user because we could've obtained this error after a prompt=none hit on
             # OpenID Connect Provider authenticate endpoint.
+            logger.debug(log_prompt.format('Logout'))
             auth.logout(request)
 
+        logger.debug(log_prompt.format('Redirect'))
         return HttpResponseRedirect(oidc_rp_settings.AUTHENTICATION_FAILURE_REDIRECT_URI)
 
 
@@ -156,22 +181,30 @@ class OIDCEndSessionView(View):
 
     def get(self, request):
         """ Processes GET requests. """
+        log_prompt = "Process GET requests [OIDCEndSessionView]: {}"
+        logger.debug(log_prompt.format('Start'))
         return self.post(request)
 
     def post(self, request):
         """ Processes POST requests. """
+        log_prompt = "Process POST requests [OIDCEndSessionView]: {}"
+        logger.debug(log_prompt.format('Start'))
+
         logout_url = settings.LOGOUT_REDIRECT_URL or '/'
 
         # Log out the current user.
         if request.user.is_authenticated:
+            logger.debug(log_prompt.format('Current user is authenticated'))
             try:
                 logout_url = self.provider_end_session_url \
                     if oidc_rp_settings.PROVIDER_END_SESSION_ENDPOINT else logout_url
             except KeyError:  # pragma: no cover
                 logout_url = logout_url
+            logger.debug(log_prompt.format('Log out the current user: {}'.format(request.user)))
             auth.logout(request)
 
         # Redirects the user to the appropriate URL.
+        logger.debug(log_prompt.format('Redirect'))
         return HttpResponseRedirect(logout_url)
 
     @property
