@@ -1,7 +1,7 @@
 jumpserver-django-oidc-rp
 ##############
 
-**JumpServer-django-oidc-rp** is based on the modified [django-oidc-rp](https://github.com/impak-finance/django-oidc-rp "github django-oidc-rp") adapter JumpServer OpenID Connect Relying Party (RP/Client)
+**JumpServer-django-oidc-rp** is based on the modified django-oidc-rp (https://github.com/impak-finance/django-oidc-rp) adapter JumpServer OpenID Connect Relying Party (RP/Client)
 Main requirements
 =================
 
