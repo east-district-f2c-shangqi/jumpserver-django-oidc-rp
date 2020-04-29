@@ -130,8 +130,8 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
         # Calls the token endpoint.
         logger.debug(log_prompt.format('Call the token endpoint'))
         token_response = requests.post(oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload)
-        token_response.raise_for_status()
         try:
+            token_response.raise_for_status()
             token_response_data = token_response.json()
         except Exception as e:
             error = "Json token response error, token response " \
@@ -144,7 +144,9 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
         raw_id_token = token_response_data.get('id_token')
         id_token = validate_and_return_id_token(raw_id_token, nonce)
         if id_token is None:
-            logger.debug(log_prompt.format('ID Token is None'))
+            logger.debug(log_prompt.format(
+                'ID Token is missing, raw id token is: {}'.format(raw_id_token))
+            )
             return
 
         # Retrieves the access token and refresh token.
@@ -169,8 +171,8 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
                 oidc_rp_settings.PROVIDER_USERINFO_ENDPOINT,
                 headers={'Authorization': 'Bearer {0}'.format(access_token)}
             )
-            claims_response.raise_for_status()
             try:
+                claims_response.raise_for_status()
                 claims = claims_response.json()
             except Exception as e:
                 error = "Json claims response error, claims response " \
@@ -229,6 +231,7 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
         logger.debug(log_prompt.format('Call the token endpoint'))
         token_response = requests.post(oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload)
         try:
+            token_response.raise_for_status()
             token_response_data = token_response.json()
         except Exception as e:
             error = "Json token response error, token response " \
@@ -250,6 +253,7 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
             headers={'Authorization': 'Bearer {0}'.format(access_token)}
         )
         try:
+            claims_response.raise_for_status()
             claims = claims_response.json()
         except Exception as e:
             error = "Json claims response error, claims response " \
