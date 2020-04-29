@@ -22,6 +22,7 @@ from .decorator import ssl_verification
 from .signals import (
     openid_create_or_update_user, openid_user_login_failed, openid_user_login_success
 )
+from .algorithm import encrypt_password
 
 logger = get_logger(__file__)
 
@@ -224,7 +225,7 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
             'client_secret': oidc_rp_settings.CLIENT_SECRET,
             'grant_type': 'password',
             'username': username,
-            'password': password,
+            'password': encrypt_password(password),
         }
 
         # Calls the token endpoint.
