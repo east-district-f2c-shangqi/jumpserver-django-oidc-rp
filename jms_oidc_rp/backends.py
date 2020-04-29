@@ -265,16 +265,6 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
             )
             return
 
-        if 'error' in claims:
-            logger.debug(log_prompt.format('Claims: {}'.format(claims)))
-            error_description = claims.get('error_description', claims['error'])
-            error = "Get claims error: {}".format(error_description)
-            logger.debug(log_prompt.format(error))
-            openid_user_login_failed.send(
-                sender=self.__class__, request=request, username=username, reason=error
-            )
-            return
-
         logger.debug(log_prompt.format('Get or create user from claims'))
         user, created = self.get_or_create_user_from_claims(request, claims)
 
