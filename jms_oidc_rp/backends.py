@@ -233,7 +233,6 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
         except Exception as e:
             error = "Json token response error, token response " \
                     "content is: {}, error is: {}".format(token_response.content, str(e))
-            print(error)
             logger.debug(log_prompt.format(error))
             logger.debug(log_prompt.format('Send signal => openid user login failed'))
             openid_user_login_failed.send(
@@ -262,6 +261,16 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
             )
             return
 
+        if 'error' in claims:
+            logger.debug(log_prompt.format('Claims: {}'.format(claims)))
+            error_description = claims.get('error_description', claims['error'])
+            error = "Get claims error: {}".format(error_description)
+            logger.debug(log_prompt.format(error))
+            openid_user_login_failed.send(
+                sender=self.__class__, request=request, username=username, reason=error
+            )
+            return
+
         logger.debug(log_prompt.format('Get or create user from claims'))
         user, created = self.get_or_create_user_from_claims(request, claims)
 
@@ -279,6 +288,7 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
             logger.debug(log_prompt.format('OpenID user login failed'))
             logger.debug(log_prompt.format('Send signal => openid user login failed'))
             openid_user_login_failed.send(
-                sender=self.__class__, request=request, username=username, reason=error
+                sender=self.__class__, request=request, username=username, reason="User is invalid"
             )
+            return None
 
