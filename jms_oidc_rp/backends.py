@@ -7,6 +7,7 @@
 
 """
 
+import base64
 import requests
 from rest_framework.exceptions import ParseError
 from django.contrib.auth import get_user_model
@@ -127,9 +128,17 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
             ),
         }
 
+        # Prepares the token headers that will be used to request an authentication token to the
+        # token endpoint of the OIDC provider.
+        logger.debug(log_prompt.format('Prepares token headers'))
+        basic_token = "{}:{}".format(oidc_rp_settings.CLIENT_ID, oidc_rp_settings.CLIENT_SECRET)
+        headers = {"Authorization": "Basic {}".format(base64.b64encode(basic_token.encode()).decode())}
+
         # Calls the token endpoint.
         logger.debug(log_prompt.format('Call the token endpoint'))
-        token_response = requests.post(oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload)
+        token_response = requests.post(
+            oidc_rp_settings.PROVIDER_TOKEN_ENDPOINT, data=token_payload, headers=headers
+        )
         try:
             token_response.raise_for_status()
             token_response_data = token_response.json()
