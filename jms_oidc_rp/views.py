@@ -21,8 +21,7 @@ from django.utils.http import is_safe_url, urlencode
 from django.views.generic import View
 
 from .conf import settings as oidc_rp_settings
-from .signals import openid_user_login_success
-from .utils import get_logger
+from .utils import get_logger, build_absolute_uri
 
 
 logger = get_logger(__file__)
@@ -52,9 +51,9 @@ class OIDCAuthRequestView(View):
             'scope': oidc_rp_settings.SCOPES,
             'response_type': 'code',
             'client_id': oidc_rp_settings.CLIENT_ID,
-            'redirect_uri': request.build_absolute_uri(
-                reverse(oidc_rp_settings.AUTH_LOGIN_CALLBACK_URL_NAME)
-            ),
+            'redirect_uri': build_absolute_uri(
+                request, path=reverse(oidc_rp_settings.AUTH_LOGIN_CALLBACK_URL_NAME)
+            )
         })
 
         # States should be used! They are recommended in order to maintain state between the
@@ -212,7 +211,7 @@ class OIDCEndSessionView(View):
         """ Returns the end-session URL. """
         q = QueryDict(mutable=True)
         q[oidc_rp_settings.PROVIDER_END_SESSION_REDIRECT_URI_PARAMETER] = \
-            self.request.build_absolute_uri(settings.LOGOUT_REDIRECT_URL or '/')
+            build_absolute_uri(self.request, path=settings.LOGOUT_REDIRECT_URL or '/')
         q[oidc_rp_settings.PROVIDER_END_SESSION_ID_TOKEN_PARAMETER] = \
             self.request.session['oidc_auth_id_token']
         return '{}?{}'.format(oidc_rp_settings.PROVIDER_END_SESSION_ENDPOINT, q.urlencode())

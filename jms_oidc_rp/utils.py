@@ -9,7 +9,7 @@
 import logging
 import datetime as dt
 from calendar import timegm
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 from django.core.exceptions import SuspiciousOperation
 from django.utils.encoding import force_bytes, smart_bytes
@@ -114,3 +114,17 @@ def _validate_claims(id_token, nonce=None, validate_nonce=True):
         raise SuspiciousOperation('Incorrect id_token: nonce')
 
     logger.debug(log_prompt.format('End'))
+
+
+def build_absolute_uri(request, path=None):
+    """
+    Build absolute redirect uri
+    """
+    if path is None:
+        path = '/'
+
+    if oidc_rp_settings.BASE_SITE_URL:
+        redirect_uri = urljoin(oidc_rp_settings.BASE_SITE_URL, path)
+    else:
+        redirect_uri = request.build_absolute_uri(path)
+    return redirect_uri

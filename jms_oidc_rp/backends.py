@@ -18,7 +18,7 @@ from django.urls import reverse
 
 from .conf import settings as oidc_rp_settings
 from .models import OIDCUser
-from .utils import validate_and_return_id_token, get_logger
+from .utils import validate_and_return_id_token, get_logger, build_absolute_uri
 from .decorator import ssl_verification
 from .signals import (
     openid_create_or_update_user, openid_user_login_failed, openid_user_login_success
@@ -123,9 +123,9 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
             'client_secret': oidc_rp_settings.CLIENT_SECRET,
             'grant_type': 'authorization_code',
             'code': code,
-            'redirect_uri': request.build_absolute_uri(
-                reverse(oidc_rp_settings.AUTH_LOGIN_CALLBACK_URL_NAME)
-            ),
+            'redirect_uri': build_absolute_uri(
+                request, path=reverse(oidc_rp_settings.AUTH_LOGIN_CALLBACK_URL_NAME)
+            )
         }
 
         # Prepares the token headers that will be used to request an authentication token to the

@@ -148,6 +148,10 @@ UNAUTHENTICATED_SESSION_MANAGEMENT_KEY = getattr(
 
 
 # JumpServer config
+# 项目站点url
+BASE_SITE_URL = getattr(
+    settings, 'BASE_SITE_URL', None
+)
 # 用户登录的路径名
 AUTH_LOGIN_URL_NAME = getattr(
     settings, 'AUTH_OPENID_AUTH_LOGIN_URL_NAME', None
