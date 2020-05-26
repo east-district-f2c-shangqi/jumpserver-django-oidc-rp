@@ -30,7 +30,7 @@ class OIDCRefreshIDTokenMiddleware:
 
     def __call__(self, request):
         # Refreshes tokens only in the applicable cases.
-        if request.method == 'GET' and not request.is_ajax() and request.user.is_authenticated:
+        if request.method == 'GET' and not request.is_ajax() and request.user.is_authenticated and oidc_rp_settings.AUTH_OPENID:
             self.refresh_token(request)
         response = self.get_response(request)
         return response
@@ -40,7 +40,7 @@ class OIDCRefreshIDTokenMiddleware:
         """ Refreshes the token of the current user. """
 
         log_prompt = "Process refresh Token: {}"
-        logger.debug(log_prompt.format('Start'))
+        # logger.debug(log_prompt.format('Start'))
 
         # NOTE: SHARE_SESSION is False means that the user does not share sessions
         # with other applications
@@ -59,7 +59,7 @@ class OIDCRefreshIDTokenMiddleware:
         now_timestamp = time.time()
         # Returns immediately if the token is still valid.
         if id_token_exp_timestamp is not None and id_token_exp_timestamp > now_timestamp:
-            logger.debug(log_prompt.format('Returns immediately because token is still valid'))
+            # logger.debug(log_prompt.format('Returns immediately because token is still valid'))
             return
 
         # Prepares the token payload that will be used to request a new token from the token

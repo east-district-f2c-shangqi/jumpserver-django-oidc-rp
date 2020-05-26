@@ -148,6 +148,10 @@ UNAUTHENTICATED_SESSION_MANAGEMENT_KEY = getattr(
 
 
 # JumpServer config
+# 是否启用认证
+AUTH_OPENID = getattr(
+    settings, 'AUTH_OPENID', False
+)
 # 项目站点url
 BASE_SITE_URL = getattr(
     settings, 'BASE_SITE_URL', None
