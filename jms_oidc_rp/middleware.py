@@ -86,23 +86,23 @@ class OIDCRefreshIDTokenMiddleware:
         token_response_data = token_response.json()
 
         # Validates the token.
-        logger.debug(log_prompt.format('Validate ID Token'))
-        raw_id_token = token_response_data.get('id_token')
-        id_token = validate_and_return_id_token(raw_id_token, validate_nonce=False)
+        # logger.debug(log_prompt.format('Validate ID Token'))
+        # raw_id_token = token_response_data.get('id_token')
+        # id_token = validate_and_return_id_token(raw_id_token, validate_nonce=False)
 
         # If the token cannot be validated we have to log out the current user.
-        if id_token is None:
-            logger.debug(log_prompt.format('ID Token is None'))
-            auth.logout(request)
-            logger.debug(log_prompt.format('Logout'))
-            return
+        # if id_token is None:
+        #    logger.debug(log_prompt.format('ID Token is None'))
+        #    auth.logout(request)
+        #    logger.debug(log_prompt.format('Logout'))
+        #    return
 
         # Retrieves the access token and refresh token.
         access_token = token_response_data.get('access_token')
         refresh_token = token_response_data.get('refresh_token')
 
         # Stores the ID token, the related access token and the refresh token in the session.
-        request.session['oidc_auth_id_token'] = raw_id_token
+        # request.session['oidc_auth_id_token'] = raw_id_token
         request.session['oidc_auth_access_token'] = access_token
         request.session['oidc_auth_refresh_token'] = refresh_token
 
