@@ -33,11 +33,12 @@ class ActionForUser:
     def get_or_create_user_from_claims(self, request, claims):
         log_prompt = "Get or Create user from claims [ActionForUser]: {}"
         logger.debug(log_prompt.format('start'))
+        logger.debug(log_prompt.format(claims))
 
-        sub = claims['sub']
-        name = claims.get('name', sub)
-        username = claims.get('preferred_username', sub)
-        email = claims.get('email', "{}@{}".format(username, 'jumpserver.openid'))
+        sub = claims['uid']
+        name = claims.get('displayName',sub)
+        username = claims.get('loginName',sub)
+        email = claims.get('mail', "{}@{}".format(username, 'jumpserver.openid'))
         logger.debug(
             log_prompt.format(
                 "sub: {}|name: {}|username: {}|email: {}".format(sub, name, username, email)
@@ -60,7 +61,7 @@ class ActionForUser:
     def update_or_create_oidc_user(user, claims):
         log_prompt = "Update or Create oidc user [ActionForUser]: {}"
         logger.debug(log_prompt.format('start'))
-
+        claims['sub'] = claims.get('uid')
         sub = user.oidc_user.sub if hasattr(user, 'oidc_user') else claims['sub']
         logger.debug(log_prompt.format("sub: {}".format(sub)))
 
@@ -163,7 +164,7 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
         refresh_token = token_response_data.get('refresh_token')
 
         # Stores the ID token, the related access token and the refresh token in the session.
-        request.session['oidc_auth_id_token'] = raw_id_token
+        #request.session['oidc_auth_id_token'] = raw_id_token
         request.session['oidc_auth_access_token'] = access_token
         request.session['oidc_auth_refresh_token'] = refresh_token
 
@@ -178,7 +179,7 @@ class OIDCAuthCodeBackend(ActionForUser, ModelBackend):
             logger.debug(log_prompt.format('Fetches the claims from the userinfo endpoint'))
             claims_response = requests.get(
                 oidc_rp_settings.PROVIDER_USERINFO_ENDPOINT,
-                headers={'Authorization': 'Bearer {0}'.format(access_token)}
+                params={'client_id': oidc_rp_settings.CLIENT_ID, 'access_token': access_token},
             )
             try:
                 claims_response.raise_for_status()
@@ -294,4 +295,3 @@ class OIDCAuthPasswordBackend(ActionForUser, ModelBackend):
                 sender=self.__class__, request=request, username=username, reason="User is invalid"
             )
             return None
-
