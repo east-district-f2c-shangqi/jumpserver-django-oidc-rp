@@ -213,5 +213,5 @@ class OIDCEndSessionView(View):
         q[oidc_rp_settings.PROVIDER_END_SESSION_REDIRECT_URI_PARAMETER] = \
             build_absolute_uri(self.request, path=settings.LOGOUT_REDIRECT_URL or '/')
         q[oidc_rp_settings.PROVIDER_END_SESSION_ID_TOKEN_PARAMETER] = \
-            self.request.session['oidc_auth_id_token']
+            'redirctToUrl='+oidc_rp_settings.BASE_SITE_URL+'&redirectToLogin=true&entityId='+oidc_rp_settings.CLIENT_ID
         return '{}?{}'.format(oidc_rp_settings.PROVIDER_END_SESSION_ENDPOINT, q.urlencode())
